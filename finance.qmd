@@ -34,4 +34,46 @@ da <- inner_join(accounts, disp)
 cda <- inner_join(clients, da, by = join_by(client_id), suffix = c("_home", "_bank"))
 ```
 
+### Home district versus bank district
+```{r}
+home_diff_bank <- cda |> filter(district_id_home != district_id_bank) |> nrow()
+```
+We observe that `r home_diff_bank` clients have a bank in another 
+district as the one they live in. 
+
+```{r}
+cda |>
+  group_by(account_id) |> 
+  distinct(district_id_home) |> 
+  summarise(N=n()) |> 
+  filter(N>1)
+```
+
+### Gender gap?
+```{r}
+clients |> count(gender)
+```
+```{r}
+clients |> 
+  ggplot(aes(x=gender)) + geom_bar() + coord_flip()
+```
+
+```{r}
+cda |> 
+  count(gender, type) |>
+  group_by(gender) |>
+  mutate(freq=n/sum(n)) |>
+  select(-n) |> 
+  ungroup() |>
+  pivot_wider(values_from = freq, names_from = type)
+```
+```{r}
+cda |>
+  ggplot(aes(y=gender, fill=type)) + geom_bar(position = "fill")
+```
+
+```{r}
+chisq.test(cda |> pull(gender),
+           cda |> pull(type))
+```
 
