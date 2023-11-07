@@ -12,6 +12,7 @@ library(vroom) ## or readr
 library(dplyr)
 library(tidyr)
 library(ggplot2)
+library(patchwork)
 ```
 
 ## Data loading
@@ -77,3 +78,79 @@ chisq.test(cda |> pull(gender),
            cda |> pull(type))
 ```
 
+## Loan analysis
+```{r}
+#| message: false
+loan <- vroom(here("data", "loan.csv"))
+```
+
+```{r}
+loan <- loan |> 
+  mutate(status = factor(status, levels=c("A", "B", "C", "D")),
+         loan_id = as.integer(loan_id),
+         account_id = as.integer(account_id))
+```
+
+Factor recoding of `status` introduced `r loan |> filter(is.na(status)) |> nrow()` error(s).
+
+```{r}
+loan_counts <- ggplot(loan, aes(x=status)) + geom_bar()
+loan_counts
+```
+```{r}
+loan |> 
+  group_by(status) |>
+  summarise(sum(amount))
+```
+```{r}
+ggplot(loan, aes(x=status, y=amount)) + 
+  geom_boxplot()
+```
+```{r}
+loan_amounts <- loan |> 
+  group_by(status) |>
+  summarise("total amount" = sum(amount)) |>
+  ggplot(aes(x=status, y=`total amount`)) + 
+  geom_col()
+loan_amounts
+```
+```{r}
+loan_counts + loan_amounts
+```
+
+```{r}
+(loan_counts + coord_flip()) / (loan_amounts + coord_flip())
+```
+```{r}
+(loan |> 
+  filter(status %in% c("A", "B")) |>
+  ggplot(aes(x=status)) + geom_bar() + ggtitle("Past loans")) +
+(loan |> 
+  filter(status %in% c("C", "D")) |>
+  ggplot(aes(x=status)) + geom_bar() + ggtitle("Ongoing loans"))  
+```
+```{r}
+loan <- loan |>
+  mutate(active= if_else(status %in% c("A", "B"), "Past", "Active"))
+```
+
+```{r}
+ggplot(loan, aes(x=status)) + 
+  geom_bar() + 
+  facet_wrap(~active, scales="free")
+```
+
+```{r}
+ggplot(loan, aes(y=active, fill=status)) + 
+  geom_bar(position = "fill")
+```
+
+```{r}
+loan <- loan |>
+  mutate(default = status %in% c("B", "D"))
+```
+
+```{r}
+ggplot(loan, aes(y=active, fill=default)) + 
+  geom_bar(position = "fill")
+```
